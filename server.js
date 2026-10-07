@@ -458,13 +458,33 @@ async function searchMercadoLivre(query) {
     );
   }
 
-  const data =
-    await response.json();
+const responseText = await response.text();
 
-  const rawResults =
-    Array.isArray(data.results)
-      ? data.results
-      : [];
+if (!responseText || !responseText.trim()) {
+  throw new Error(
+    'O Mercado Livre retornou uma resposta vazia.'
+  );
+}
+
+let data;
+
+try {
+  data = JSON.parse(responseText);
+} catch (error) {
+  console.error(
+    'Resposta recebida do Mercado Livre:',
+    responseText.slice(0, 500)
+  );
+
+  throw new Error(
+    'O Mercado Livre não retornou um JSON válido.'
+  );
+}
+
+const rawResults =
+  Array.isArray(data.results)
+    ? data.results
+    : [];
 
   const filtered =
     rawResults
