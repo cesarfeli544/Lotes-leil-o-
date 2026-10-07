@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leilão Inteligente</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      color: #1f2937;
+    }
+
+    header {
+      background: #111827;
+      color: white;
+      padding: 22px 18px;
+    }
+
+    header h1 {
+      margin: 0 0 6px;
+      font-size: 25px;
+    }
+
+    header p {
+      margin: 0;
+      color: #cbd5e1;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 18px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.06);
+    }
+
+    h2 {
+      margin-top: 0;
+      font-size: 20px;
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin: 12px 0 6px;
+    }
+
+    input,
+    textarea,
+    button {
+      width: 100%;
+      font: inherit;
+    }
+
+    input,
+    textarea {
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+    }
+
+    textarea {
+      min-height: 160px;
+      resize: vertical;
+    }
+
+    button {
+      margin-top: 16px;
+      padding: 13px;
+      border: 0;
+      border-radius: 8px;
+      background: #2563eb;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      opacity: .9;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .results {
+      display: none;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .metric {
+      background: #f8fafc;
+      padding: 15px;
+      border-radius: 10px;
+    }
+
+    .metric small {
+      display: block;
+      color: #64748b;
+      margin-bottom: 5px;
+    }
+
+    .metric strong {
+      font-size: 19px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+
+    th,
+    td {
+      padding: 10px;
+      border-bottom: 1px solid #e5e7eb;
+      text-align: left;
+    }
+
+    th {
+      background: #f8fafc;
+    }
+
+    .error {
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 12px;
+      display: none;
+    }
+
+    .success {
+      background: #dcfce7;
+      color: #166534;
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 12px;
+      display: none;
+    }
+
+    @media (max-width: 700px) {
+      .grid,
+      .summary {
+        grid-template-columns: 1fr;
+      }
+
+      table {
+        font-size: 13px;
+      }
+
+      main {
+        padding: 12px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>Leilão Inteligente</h1>
+  <p>Calcule custos, preço mínimo e potencial de lucro dos seus lotes.</p>
+</header>
+
+<main>
+
+  <section class="card">
+    <h2>⚙️ Configurações</h2>
+
+    <div class="grid">
+      <div>
+        <label>Taxa do leilão (%)</label>
+        <input id="auction_fee" type="number" step="0.01" value="10">
+      </div>
+
+      <div>
+        <label>Desconto de mercado (%)</label>
+        <input id="discount_market" type="number" step="0.01" value="30">
+      </div>
+
+      <div>
+        <label>Taxa do cartão (%)</label>
+        <input id="card_fee" type="number" step="0.01" value="6">
+      </div>
+
+      <div>
+        <label>Frete (R$)</label>
+        <input id="freight" type="number" step="0.01" value="0">
+      </div>
+
+      <div>
+        <label>Outros custos (R$)</label>
+        <input id="other_costs" type="number" step="0.01" value="0">
+      </div>
+
+      <div>
+        <label>Margem de segurança (R$)</label>
+        <input id="safety_margin" type="number" step="0.01" value="0">
+      </div>
+    </div>
+
+    <button onclick="saveSettings()">Salvar configurações</button>
+
+    <div id="settingsMessage" class="success"></div>
+  </section>
+
+
+  <section class="card">
+    <h2>📦 Analisar novo lote</h2>
+
+    <label>Valor pago pelo lote (R$)</label>
+    <input id="lotValue" type="number" step="0.01" placeholder="Ex.: 1500">
+
+    <label>Produtos do lote</label>
+
+    <textarea id="rawList" placeholder="Exemplo:
+2 TVs Samsung 50 polegadas
+1 Notebook Dell
+3 Furadeiras Bosch"></textarea>
+
+    <button onclick="analyzeLot()">Analisar lote</button>
+
+    <div id="error" class="error"></div>
+  </section>
+
+
+  <section id="results" class="card results">
+
+    <h2>📊 Resultado da análise</h2>
+
+    <div class="summary">
+
+      <div class="metric">
+        <small>Custo total</small>
+        <strong id="totalCost">R$ 0,00</strong>
+      </div>
+
+      <div class="metric">
+        <small>Valor de mercado</small>
+        <strong id="marketTotal">R$ 0,00</strong>
+      </div>
+
+      <div class="metric">
+        <small>Valor de revenda</small>
+        <strong id="resaleTotal">R$ 0,00</strong>
+      </div>
+
+      <div class="metric">
+        <small>Lucro potencial</small>
+        <strong id="profitPotential">R$ 0,00</strong>
+      </div>
+
+    </div>
+
+    <h3>Produtos</h3>
+
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Produto</th>
+            <th>Qtd.</th>
+            <th>Mercado</th>
+            <th>Revenda</th>
+            <th>Mínimo</th>
+          </tr>
+        </thead>
+
+        <tbody id="productsTable"></tbody>
+      </table>
+    </div>
+
+  </section>
+
+
+  <section class="card">
+    <h2>📚 Histórico de lotes</h2>
+
+    <div id="history">
+      Carregando histórico...
+    </div>
+  </section>
+
+</main>
+
+
+<script>
+
+  const money = value =>
+    Number(value || 0).toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    });
+
+
+  async function loadSettings() {
+
+    try {
+
+      const response = await fetch('/api/settings');
+
+      if (!response.ok) throw new Error('Erro ao carregar configurações.');
+
+      const s = await response.json();
+
+      document.getElementById('auction_fee').value = s.auction_fee;
+      document.getElementById('discount_market').value = s.discount_market;
+      document.getElementById('card_fee').value = s.card_fee;
+      document.getElementById('freight').value = s.freight;
+      document.getElementById('other_costs').value = s.other_costs;
+      document.getElementById('safety_margin').value = s.safety_margin;
+
+    } catch (error) {
+
+      showError(error.message);
+
+    }
+
+  }
+
+
+  function getSettings() {
+
+    return {
+      auction_fee: Number(document.getElementById('auction_fee').value),
+      discount_market: Number(document.getElementById('discount_market').value),
+      card_fee: Number(document.getElementById('card_fee').value),
+      freight: Number(document.getElementById('freight').value),
+      other_costs: Number(document.getElementById('other_costs').value),
+      safety_margin: Number(document.getElementById('safety_margin').value)
+    };
+
+  }
+
+
+  async function saveSettings() {
+
+    try {
+
+      const response = await fetch('/api/settings', {
+
+        method: 'PUT',
+
+        headers: {
+          'Content-Type': 'application/json'
+        },
+
+        body: JSON.stringify(getSettings())
+
+      });
+
+      if (!response.ok) throw new Error('Não foi possível salvar as configurações.');
+
+      const message = document.getElementById('settingsMessage');
+
+      message.textContent = 'Configurações salvas com sucesso.';
+      message.style.display = 'block';
+
+      setTimeout(() => {
+        message.style.display = 'none';
+      }, 2500);
+
+    } catch (error) {
+
+      showError(error.message);
+
+    }
+
+  }
+
+
+  async function analyzeLot() {
+
+    hideError();
+
+    const rawList = document.getElementById('rawList').value.trim();
+    const lotValue = Number(document.getElementById('lotValue').value);
+
+    if (!rawList) {
+      showError('Cole a lista de produtos primeiro.');
+      return;
+    }
+
+    if (!lotValue || lotValue < 0) {
+      showError('Informe o valor pago pelo lote.');
+      return;
+    }
+
+    try {
+
+      const response = await fetch('/api/analyze', {
+
+        method: 'POST',
+
+        headers: {
+          'Content-Type': 'application/json'
+        },
+
+        body: JSON.stringify({
+          rawList,
+          lotValue,
+          settings: getSettings()
+        })
+
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro na análise.');
+      }
+
+      renderResults(data);
+
+      loadHistory();
+
+    } catch (error) {
+
+      showError(error.message);
+
+    }
+
+  }
+
+
+  function renderResults(data) {
+
+    document.getElementById('results').style.display = 'block';
+
+    document.getElementById('totalCost').textContent =
+      money(data.summary.total_cost);
+
+    document.getElementById('marketTotal').textContent =
+      money(data.summary.market_total);
+
+    document.getElementById('resaleTotal').textContent =
+      money(data.summary.resale_total);
+
+    document.getElementById('profitPotential').textContent =
+      money(data.summary.profit_potential);
+
+
+    const table = document.getElementById('productsTable');
+
+    table.innerHTML = '';
+
+
+    data.products.forEach(product => {
+
+      const row = document.createElement('tr');
+
+      row.innerHTML = `
+        <td>${escapeHtml(product.name)}</td>
+        <td>${product.quantity}</td>
+        <td>${money(product.market_value)}</td>
+        <td>${money(product.card_price)}</td>
+        <td>${money(product.minimum_price)}</td>
+      `;
+
+      table.appendChild(row);
+
+    });
+
+  }
+
+
+  async function loadHistory() {
+
+    try {
+
+      const response = await fetch('/api/lots');
+
+      if (!response.ok) throw new Error();
+
+      const lots = await response.json();
+
+      const history = document.getElementById('history');
+
+      if (!lots.length) {
+
+        history.innerHTML = '<p>Nenhum lote analisado ainda.</p>';
+
+        return;
+
+      }
+
+
+      history.innerHTML = lots.map(lot => `
+
+        <div style="
+          border:1px solid #e5e7eb;
+          border-radius:10px;
+          padding:14px;
+          margin-bottom:10px;
+        ">
+
+          <strong>Lote #${lot.lot_number}</strong>
+
+          <br>
+
+          <small>
+            ${new Date(lot.created_at).toLocaleString('pt-BR')}
+          </small>
+
+          <br><br>
+
+          Custo:
+          <strong>${money(lot.summary.total_cost)}</strong>
+
+          &nbsp; | &nbsp;
+
+          Revenda:
+          <strong>${money(lot.summary.resale_total)}</strong>
+
+          &nbsp; | &nbsp;
+
+          Lucro:
+          <strong>${money(lot.summary.profit_potential)}</strong>
+
+        </div>
+
+      `).join('');
+
+    } catch {
+
+      document.getElementById('history').textContent =
+        'Não foi possível carregar o histórico.';
+
+    }
+
+  }
+
+
+  function showError(message) {
+
+    const error = document.getElementById('error');
+
+    error.textContent = message;
+
+    error.style.display = 'block';
+
+  }
+
+
+  function hideError() {
+
+    document.getElementById('error').style.display = 'none';
+
+  }
+
+
+  function escapeHtml(value) {
+
+    return String(value)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+
+  }
+
+
+  loadSettings();
+  loadHistory();
+
+</script>
+
+</body>
+      </html>
